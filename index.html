@@ -466,7 +466,7 @@ svg.call(zoom.transform,d3.zoomIdentity.translate(width*.1,30).scale(.65));
 //      }
 //   2. Deploy → New deployment → Web app → Execute as: Me → Access: Anyone → copy URL
 //   3. Paste the deployment URL below.
-const APPS_SCRIPT_URL = ''; // <- paste your Apps Script deployment URL here
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyIj9F1XrOW9U6gMCgmsvlx7bteD-YZVP-Q6PKTA7UI78U90qELS21NpRcvKQBiT6VF/exec'; // <- paste your Apps Script deployment URL here
 
 let issues = [];
 try { issues = JSON.parse(localStorage.getItem('lineage-issues')||'[]'); } catch(e){ issues = []; }
