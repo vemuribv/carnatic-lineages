@@ -458,15 +458,44 @@ svg.call(zoom.transform,d3.zoomIdentity.translate(width*.1,30).scale(.65));
 // To route issues to a Google Sheet:
 //   1. Create a Google Sheet, then go to Extensions → Apps Script and paste:
 //      function doPost(e) {
+//        const lock = LockService.getScriptLock();
+//        lock.waitLock(5000);
 //        const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 //        const data = JSON.parse(e.postData.contents);
+//        // Server-side rate limit: reject if same nodeId reported in last 30s
+//        const rows = sheet.getDataRange().getValues();
+//        const now = new Date();
+//        for (let i = rows.length - 1; i >= 1; i--) {
+//          const rowTime = new Date(rows[i][1]);
+//          if (now - rowTime > 30000) break; // older rows are fine
+//          if (rows[i][3] === data.nodeId) {
+//            lock.releaseLock();
+//            return ContentService.createTextOutput(JSON.stringify({ok:false,error:'rate limited'}))
+//              .setMimeType(ContentService.MimeType.JSON);
+//          }
+//        }
 //        sheet.appendRow([data.id, data.timestamp, data.nodeName, data.nodeId, data.text]);
+//        lock.releaseLock();
 //        return ContentService.createTextOutput(JSON.stringify({ok:true}))
 //          .setMimeType(ContentService.MimeType.JSON);
 //      }
 //   2. Deploy → New deployment → Web app → Execute as: Me → Access: Anyone → copy URL
 //   3. Paste the deployment URL below.
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyIj9F1XrOW9U6gMCgmsvlx7bteD-YZVP-Q6PKTA7UI78U90qELS21NpRcvKQBiT6VF/exec'; // <- paste your Apps Script deployment URL here
+
+// Rate limiting: 1 submission per 30 seconds
+const RATE_LIMIT_MS = 30000;
+function canSubmitIssue() {
+  const last = parseInt(localStorage.getItem('lineage-last-issue-ts') || '0', 10);
+  return Date.now() - last >= RATE_LIMIT_MS;
+}
+function markIssueSubmitted() {
+  localStorage.setItem('lineage-last-issue-ts', String(Date.now()));
+}
+function secondsUntilNextSubmit() {
+  const last = parseInt(localStorage.getItem('lineage-last-issue-ts') || '0', 10);
+  return Math.max(0, Math.ceil((RATE_LIMIT_MS - (Date.now() - last)) / 1000));
+}
 
 let issues = [];
 try { issues = JSON.parse(localStorage.getItem('lineage-issues')||'[]'); } catch(e){ issues = []; }
@@ -509,6 +538,15 @@ document.getElementById('issueOverlay').addEventListener('click',e=>{
 document.getElementById('issueSubmitBtn').addEventListener('click',()=>{
   const text = document.getElementById('issueText').value.trim();
   if(!text || !issueTargetNode) return;
+  // Rate limit check
+  if (!canSubmitIssue()) {
+    const wait = secondsUntilNextSubmit();
+    const toast = document.getElementById('issueToast');
+    toast.textContent = 'Please wait ' + wait + 's before submitting another issue';
+    toast.classList.add('show');
+    setTimeout(()=>{ toast.classList.remove('show'); toast.textContent = 'Issue reported — thank you!'; }, 2500);
+    return;
+  }
   const issue = {
     id: 'ISS-'+Date.now(),
     nodeId: issueTargetNode.id,
@@ -518,6 +556,7 @@ document.getElementById('issueSubmitBtn').addEventListener('click',()=>{
   };
   issues.push(issue);
   saveIssues();
+  markIssueSubmitted();
   document.getElementById('issueOverlay').classList.remove('open');
   // Send to Google Sheets if URL is configured
   if (APPS_SCRIPT_URL) {
