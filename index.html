@@ -455,6 +455,19 @@ function dragE(e){if(!e.active)simulation.alphaTarget(0);e.subject.fx=null;e.sub
 svg.call(zoom.transform,d3.zoomIdentity.translate(width*.1,30).scale(.65));
 
 // ===== ISSUE TRACKING SYSTEM =====
+// To route issues to a Google Sheet:
+//   1. Create a Google Sheet, then go to Extensions → Apps Script and paste:
+//      function doPost(e) {
+//        const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+//        const data = JSON.parse(e.postData.contents);
+//        sheet.appendRow([data.id, data.timestamp, data.nodeName, data.nodeId, data.text]);
+//        return ContentService.createTextOutput(JSON.stringify({ok:true}))
+//          .setMimeType(ContentService.MimeType.JSON);
+//      }
+//   2. Deploy → New deployment → Web app → Execute as: Me → Access: Anyone → copy URL
+//   3. Paste the deployment URL below.
+const APPS_SCRIPT_URL = ''; // <- paste your Apps Script deployment URL here
+
 let issues = [];
 try { issues = JSON.parse(localStorage.getItem('lineage-issues')||'[]'); } catch(e){ issues = []; }
 function saveIssues(){ localStorage.setItem('lineage-issues', JSON.stringify(issues)); updateIssueBadge(); }
@@ -506,6 +519,15 @@ document.getElementById('issueSubmitBtn').addEventListener('click',()=>{
   issues.push(issue);
   saveIssues();
   document.getElementById('issueOverlay').classList.remove('open');
+  // Send to Google Sheets if URL is configured
+  if (APPS_SCRIPT_URL) {
+    fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(issue)
+    }).catch(() => {}); // silent fail — local copy already saved
+  }
   // Show toast
   const toast = document.getElementById('issueToast');
   toast.classList.add('show');
