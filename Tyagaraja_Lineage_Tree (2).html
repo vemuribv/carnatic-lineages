@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carnatic Music Guru-Shishya Parampara — Tyagaraja Lineage</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Source Sans 3',sans-serif;background:#0d1117;color:#c9d1d9;overflow:hidden;height:100vh}
+.app{display:flex;flex-direction:column;height:100vh}
+header{background:linear-gradient(135deg,#161b22 0%,#1c2333 100%);padding:14px 24px;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:10}
+header h1{font-family:'Playfair Display',serif;font-size:1.4em;color:#e6edf3;letter-spacing:.02em}
+header h1 span{color:#d4a843}
+.header-right{display:flex;gap:12px;align-items:center}
+.search-box{position:relative}
+.search-box input{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:7px 12px 7px 32px;color:#c9d1d9;font-size:.85em;width:240px;outline:none;transition:border-color .2s}
+.search-box input:focus{border-color:#58a6ff}
+.search-box svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);opacity:.5}
+.search-results{position:absolute;top:100%;left:0;right:0;background:#161b22;border:1px solid #30363d;border-radius:0 0 6px 6px;max-height:280px;overflow-y:auto;z-index:100;display:none}
+.search-results.active{display:block}
+.search-result-item{padding:8px 12px;cursor:pointer;font-size:.85em;border-bottom:1px solid #21262d}
+.search-result-item:hover{background:#21262d}
+.search-result-item .gen{color:#8b949e;font-size:.75em}
+.filters{display:flex;gap:8px;align-items:center}
+.filter-btn{background:#21262d;border:1px solid #30363d;color:#8b949e;padding:5px 10px;border-radius:6px;font-size:.78em;cursor:pointer;transition:all .15s}
+.filter-btn:hover,.filter-btn.active{background:#30363d;color:#e6edf3;border-color:#58a6ff}
+.main-area{flex:1;display:flex;position:relative;overflow:hidden}
+svg#graph{width:100%;height:100%;display:block}
+.link{stroke:#30363d;stroke-opacity:.5;fill:none}
+.link.highlighted-child{stroke:#58a6ff;stroke-opacity:1;stroke-width:2.5}
+.link.highlighted-parent{stroke:#d4a843;stroke-opacity:1;stroke-width:2.5}
+.node circle{cursor:pointer;stroke-width:2;transition:r .2s}
+.node.dimmed circle{opacity:.15}
+.node.dimmed text{opacity:.15}
+.link.dimmed{stroke-opacity:.05}
+.node text{fill:#8b949e;font-size:9px;pointer-events:none;font-family:'Source Sans 3',sans-serif}
+.node.highlighted text{fill:#e6edf3;font-weight:600}
+.node.trinity circle{filter:drop-shadow(0 0 6px rgba(212,168,67,.5))}
+.node.awardee circle{stroke-dasharray:none}
+.detail-panel{position:absolute;right:0;top:0;bottom:0;width:340px;background:linear-gradient(180deg,#161b22,#0d1117);border-left:1px solid #30363d;padding:0;transform:translateX(100%);transition:transform .3s ease;overflow-y:auto;z-index:20}
+.detail-panel.open{transform:translateX(0)}
+.detail-header{padding:20px;background:linear-gradient(135deg,#1c2333,#161b22);border-bottom:1px solid #30363d;position:relative}
+.detail-close{position:absolute;right:12px;top:12px;background:none;border:none;color:#8b949e;cursor:pointer;font-size:1.2em;padding:4px 8px;border-radius:4px}
+.detail-close:hover{background:#30363d;color:#e6edf3}
+.detail-name{font-family:'Playfair Display',serif;font-size:1.3em;color:#e6edf3;margin-bottom:4px}
+.detail-lifespan{color:#d4a843;font-size:.95em;margin-bottom:8px}
+.detail-badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.badge{padding:3px 8px;border-radius:10px;font-size:.7em;font-weight:600;letter-spacing:.03em}
+.badge.sk{background:rgba(212,168,67,.15);color:#d4a843;border:1px solid rgba(212,168,67,.3)}
+.badge.sna{background:rgba(88,166,255,.12);color:#58a6ff;border:1px solid rgba(88,166,255,.3)}
+.badge.padma{background:rgba(46,204,113,.12);color:#2ecc71;border:1px solid rgba(46,204,113,.3)}
+.detail-section{padding:16px 20px;border-bottom:1px solid #21262d}
+.detail-section h4{color:#8b949e;font-size:.75em;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.detail-section p,.detail-section a{font-size:.88em;color:#c9d1d9;line-height:1.5}
+.detail-section a{color:#58a6ff;text-decoration:none;word-break:break-all}
+.detail-section a:hover{text-decoration:underline}
+.guru-link,.student-link{display:inline-block;background:#21262d;padding:2px 8px;border-radius:4px;margin:2px;font-size:.82em;cursor:pointer;color:#58a6ff;border:1px solid transparent;transition:all .15s}
+.guru-link:hover,.student-link:hover{border-color:#58a6ff;background:#161b22}
+.legend-bar{position:absolute;bottom:16px;left:16px;background:rgba(22,27,34,.92);border:1px solid #30363d;border-radius:8px;padding:12px 16px;z-index:10;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:.78em}
+.legend-item{display:flex;align-items:center;gap:5px}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+.stats-bar{position:absolute;top:8px;left:8px;background:rgba(22,27,34,.85);border:1px solid #30363d;border-radius:6px;padding:8px 14px;z-index:10;font-size:.75em;color:#8b949e;display:flex;gap:16px}
+.stats-bar strong{color:#e6edf3}
+.report-issue-btn{display:block;width:calc(100% - 40px);margin:16px 20px;padding:10px;background:rgba(218,115,67,.12);border:1px solid rgba(218,115,67,.35);color:#da7343;border-radius:6px;cursor:pointer;font-size:.85em;font-weight:600;font-family:inherit;transition:all .15s}
+.report-issue-btn:hover{background:rgba(218,115,67,.22);border-color:#da7343}
+.issue-count-badge{display:inline-flex;align-items:center;justify-content:center;background:#da7343;color:#fff;font-size:.7em;font-weight:700;min-width:18px;height:18px;border-radius:9px;padding:0 5px;margin-left:6px}
+.issues-header-btn{background:#21262d;border:1px solid #30363d;color:#8b949e;padding:5px 10px;border-radius:6px;font-size:.78em;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:4px}
+.issues-header-btn:hover{background:#30363d;color:#e6edf3;border-color:#da7343}
+.issue-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;align-items:center;justify-content:center}
+.issue-overlay.open{display:flex}
+.issue-modal{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:24px;width:420px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.issue-modal h3{font-family:'Playfair Display',serif;color:#e6edf3;margin-bottom:4px;font-size:1.1em}
+.issue-modal .issue-node-name{color:#da7343;font-size:.88em;margin-bottom:14px}
+.issue-modal textarea{width:100%;height:110px;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px;color:#c9d1d9;font-family:inherit;font-size:.88em;resize:vertical;outline:none;transition:border-color .2s}
+.issue-modal textarea:focus{border-color:#58a6ff}
+.issue-modal textarea::placeholder{color:#484f58}
+.issue-modal-actions{display:flex;gap:8px;margin-top:14px;justify-content:flex-end}
+.issue-modal-actions button{padding:8px 18px;border-radius:6px;border:1px solid #30363d;font-family:inherit;font-size:.85em;cursor:pointer;transition:all .15s}
+.issue-cancel-btn{background:#21262d;color:#8b949e}
+.issue-cancel-btn:hover{background:#30363d;color:#e6edf3}
+.issue-submit-btn{background:#da7343;border-color:#da7343;color:#fff;font-weight:600}
+.issue-submit-btn:hover{background:#c46535}
+.issue-submit-btn:disabled{opacity:.4;cursor:not-allowed}
+.issues-panel{position:absolute;right:0;top:0;bottom:0;width:380px;background:linear-gradient(180deg,#161b22,#0d1117);border-left:1px solid #30363d;padding:0;transform:translateX(100%);transition:transform .3s ease;overflow-y:auto;z-index:25}
+.issues-panel.open{transform:translateX(0)}
+.issues-panel-header{padding:16px 20px;background:linear-gradient(135deg,#1c2333,#161b22);border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between}
+.issues-panel-header h3{font-family:'Playfair Display',serif;color:#e6edf3;font-size:1.1em}
+.issues-panel-actions{display:flex;gap:8px;align-items:center}
+.issues-export-btn{background:#21262d;border:1px solid #30363d;color:#8b949e;padding:5px 10px;border-radius:5px;font-size:.75em;cursor:pointer;font-family:inherit;transition:all .15s}
+.issues-export-btn:hover{background:#30363d;color:#58a6ff;border-color:#58a6ff}
+.issues-panel-close{background:none;border:none;color:#8b949e;cursor:pointer;font-size:1.2em;padding:4px 8px;border-radius:4px}
+.issues-panel-close:hover{background:#30363d;color:#e6edf3}
+.issue-card{padding:14px 20px;border-bottom:1px solid #21262d}
+.issue-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.issue-card-name{color:#58a6ff;font-size:.88em;font-weight:600;cursor:pointer}
+.issue-card-name:hover{text-decoration:underline}
+.issue-card-date{color:#484f58;font-size:.72em;white-space:nowrap;margin-left:10px}
+.issue-card-text{color:#c9d1d9;font-size:.85em;line-height:1.5}
+.issue-card-delete{background:none;border:none;color:#484f58;cursor:pointer;font-size:.75em;padding:2px 6px;border-radius:3px;margin-top:6px}
+.issue-card-delete:hover{color:#e74c3c;background:#21262d}
+.issues-empty{padding:40px 20px;text-align:center;color:#484f58;font-size:.88em}
+.issue-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#2ea043;color:#fff;padding:10px 20px;border-radius:8px;font-size:.88em;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
+.issue-toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+ <h1><span>♪</span> Carnatic Music Guru-Shishya Parampara</h1>
+ <div class="header-right">
+  <div class="filters">
+   <div class="filter-btn active" data-filter="all">All</div>
+   <div class="filter-btn" data-filter="telugu">Telugu</div>
+   <div class="filter-btn" data-filter="tamil">Tamil</div>
+   <div class="filter-btn" data-filter="kannada">Kannada</div>
+   <div class="filter-btn" data-filter="malayalam">Malayalam</div>
+   <div class="filter-btn" data-filter="awardees">Award Winners</div>
+  </div>
+  <button class="issues-header-btn" id="issuesBtn" title="View reported issues">⚑ Issues<span class="issue-count-badge" id="issueBadge" style="display:none">0</span></button>
+  <div class="search-box">
+   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+   <input type="text" id="searchInput" placeholder="Search musician…" autocomplete="off">
+   <div class="search-results" id="searchResults"></div>
+  </div>
+ </div>
+</header>
+<div class="main-area">
+ <svg id="graph"></svg>
+ <div class="stats-bar" id="statsBar"></div>
+ <div class="legend-bar">
+  <div class="legend-item"><div class="legend-dot" style="background:#d4a843"></div>Trinity</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#e74c3c"></div>Telugu</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>Tamil</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#2ecc71"></div>Kannada</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#9b59b6"></div>Malayalam</div>
+  <div class="legend-item"><div class="legend-dot" style="border:2px solid #d4a843;width:8px;height:8px;background:transparent;border-radius:50%"></div>Award Winner</div>
+  <div class="legend-item"><div style="width:20px;height:3px;background:#d4a843;border-radius:2px"></div>Guru lineage ↑</div>
+  <div class="legend-item"><div style="width:20px;height:3px;background:#58a6ff;border-radius:2px"></div>Student subtree ↓</div>
+ </div>
+ <div class="detail-panel" id="detailPanel">
+  <div class="detail-header">
+   <button class="detail-close" id="detailClose">✕</button>
+   <div class="detail-name" id="detailName"></div>
+   <div class="detail-lifespan" id="detailLifespan"></div>
+   <div class="detail-badges" id="detailBadges"></div>
+  </div>
+  <div class="detail-section"><h4>Birthplace / Region</h4><p id="detailPlace"></p></div>
+  <div class="detail-section"><h4>Language / Tradition</h4><p id="detailLang"></p></div>
+  <div class="detail-section"><h4>Generation</h4><p id="detailGen"></p></div>
+  <div class="detail-section"><h4>Guru(s)</h4><p id="detailGurus"></p></div>
+  <div class="detail-section"><h4>Notable Students</h4><p id="detailStudents"></p></div>
+  <div class="detail-section"><h4>About</h4><p id="detailBio"></p></div>
+  <div class="detail-section" id="detailUrlSection"><h4>Reference</h4><p><a id="detailUrl" href="#" target="_blank"></a></p></div>
+  <button class="report-issue-btn" id="reportIssueBtn">⚑ Report Issue</button>
+  <div class="detail-section" id="detailIssuesSection" style="display:none"><h4>Reported Issues</h4><div id="detailIssuesList"></div></div>
+ </div>
+ <div class="issues-panel" id="issuesPanel">
+  <div class="issues-panel-header">
+   <h3>⚑ Reported Issues</h3>
+   <div class="issues-panel-actions">
+    <button class="issues-export-btn" id="exportIssuesBtn" title="Export all issues as JSON">↓ Export JSON</button>
+    <button class="issues-panel-close" id="issuesPanelClose">✕</button>
+   </div>
+  </div>
+  <div id="issuesPanelBody"></div>
+ </div>
+</div>
+</div>
+<div class="issue-overlay" id="issueOverlay">
+ <div class="issue-modal">
+  <h3>Report Issue</h3>
+  <div class="issue-node-name" id="issueNodeName"></div>
+  <textarea id="issueText" placeholder="Describe the issue — e.g. wrong birth year, incorrect guru, missing student link…"></textarea>
+  <div class="issue-modal-actions">
+   <button class="issue-cancel-btn" id="issueCancelBtn">Cancel</button>
+   <button class="issue-submit-btn" id="issueSubmitBtn" disabled>Submit</button>
+  </div>
+ </div>
+</div>
+<div class="issue-toast" id="issueToast">Issue reported — thank you!</div>
+
+<script>
+const DATA = [{"id": "T001", "name": "Tyagaraja", "birth": 1767, "death": 1847, "place": "Tiruvarur, Tamil Nadu", "language": "Telugu", "generation": 0, "gurus": "", "guru_ids": "", "students": "Manambuchavadi Venkatasubbayyar, Veena Kuppayyar, Walajapet Venkataramana Bhagavatar", "sk": "", "sna": "", "other_awards": "", "bio": "One of the Carnatic Trinity; composed thousands of kritis in Telugu, primarily in praise of Lord Rama.", "url": "https://en.wikipedia.org/wiki/Tyagaraja"}, {"id": "T002", "name": "Syama Sastri", "birth": 1762, "death": 1827, "place": "Tiruvarur, Tamil Nadu", "language": "Telugu", "generation": 0, "gurus": "", "guru_ids": "", "students": "Subbaraya Sastri", "sk": "", "sna": "", "other_awards": "", "bio": "One of the Carnatic Trinity; composed exquisite kritis known for complex rhythmic patterns. Youngest of the Trinity.", "url": "https://en.wikipedia.org/wiki/Syama_Sastri"}, {"id": "T003", "name": "Muthuswami Dikshitar", "birth": 1776, "death": 1835, "place": "Tiruvarur, Tamil Nadu", "language": "Tamil/Sanskrit", "generation": 0, "gurus": "", "guru_ids": "", "students": "Sathanur Panchanada Iyer, Shuddha Maddhalam Tambiyappan, Thanjavur Quartet", "sk": "", "sna": "", "other_awards": "", "bio": "One of the Carnatic Trinity; composed kritis in Sanskrit, known for elaborate raga exploration and Dikshitar school style.", "url": "https://en.wikipedia.org/wiki/Muthuswami_Dikshitar"}, {"id": "T004", "name": "Manambuchavadi Venkatasubbayyar", "birth": 1803, "death": 1862, "place": "Manambuchavadi, Tamil Nadu", "language": "Tamil-Telugu", "generation": 1, "gurus": "Tyagaraja", "guru_ids": "T001", "students": "Maha Vaidyanatha Iyer, Patnam Subramania Iyer, Susarla Dakshinamurthy Sastry, Madurai Pushpavanam, Ananthakrishna Iyer", "sk": "", "sna": "", "other_awards": "", "bio": "Principal disciple of Tyagaraja who carried his musical tradition to Tamil Nadu.", "url": "https://en.wikipedia.org/wiki/Manambuchavadi_Venkatasubbayyar"}, {"id": "T005", "name": "Veena Kuppayyar", "birth": 1798, "death": 1860, "place": "Tamil Nadu", "language": "Tamil", "generation": 1, "gurus": "Tyagaraja", "guru_ids": "T001", "students": "Kothavaasal Venkataramayya", "sk": "", "sna": "", "other_awards": "", "bio": "Disciple of Tyagaraja; veena player who also transmitted vocal traditions.", "url": ""}, {"id": "T006", "name": "Walajapet Venkataramana Bhagavatar", "birth": 1810, "death": 1874, "place": "Walajapet, Tamil Nadu", "language": "Telugu", "generation": 1, "gurus": "Tyagaraja", "guru_ids": "T001", "students": "Tillaisthanam Rama Iyengar", "sk": "", "sna": "", "other_awards": "", "bio": "Disciple of Tyagaraja who helped spread the tradition in the Vellore-Walajapet region.", "url": "https://en.wikipedia.org/wiki/Walajapet_Venkataramana_Bhagavatar"}, {"id": "T007", "name": "Subbaraya Sastri", "birth": 1803, "death": 1862, "place": "Thanjavur, Tamil Nadu", "language": "Telugu", "generation": 1, "gurus": "Syama Sastri", "guru_ids": "T002", "students": "Kachi Sastri, Tanjavur Kamakshi, Padinaindumandapa Sambasiva Iyer", "sk": "", "sna": "", "other_awards": "", "bio": "Son and disciple of Syama Sastri; composed kritis in Telugu continuing his father's tradition.", "url": "https://en.wikipedia.org/wiki/Subbaraya_Sastri"}, {"id": "T008", "name": "Sathanur Panchanada Iyer", "birth": null, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 1, "gurus": "Muthuswami Dikshitar", "guru_ids": "T003", "students": "Veena Dhanammal, Tirukkodikaval Krishna Iyer", "sk": "", "sna": "", "other_awards": "", "bio": "Disciple of Dikshitar who transmitted the Dikshitar school through the Tamil Nadu lineage.", "url": ""}, {"id": "T009", "name": "Thanjavur Quartet", "birth": 1804, "death": 1864, "place": "Thanjavur, Tamil Nadu", "language": "Tamil", "generation": 1, "gurus": "Muthuswami Dikshitar", "guru_ids": "T003", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Four brothers (Chinnaiah, Ponniah, Sivanandam, Vadivelu) who were disciples of Dikshitar; shaped Bharatanatyam and Carnatic music.", "url": "https://en.wikipedia.org/wiki/Thanjavur_Quartet"}, {"id": "T010", "name": "Maha Vaidyanatha Iyer (Sivan)", "birth": 1844, "death": 1893, "place": "Vaiyacheri, Tamil Nadu", "language": "Tamil", "generation": 2, "gurus": "Manambuchavadi Venkatasubbayyar", "guru_ids": "T004", "students": "T. S. Sabhesha Iyer, Umayalpuram Swaminatha Iyer, Padinaindumandapa Sambasiva Iyer", "sk": "", "sna": "", "other_awards": "", "bio": "Legendary vocalist known as 'Maha Vaidyanatha Sivan'; bridged Tyagaraja tradition to 20th century Tamil musicians.", "url": "https://en.wikipedia.org/wiki/Maha_Vaidyanatha_Iyer"}, {"id": "T011", "name": "Patnam Subramania Iyer", "birth": 1845, "death": 1902, "place": "Patnam (Thanjavur), Tamil Nadu", "language": "Tamil", "generation": 2, "gurus": "Manambuchavadi Venkatasubbayyar, Kothavaasal Venkataramayya", "guru_ids": "T004, T012", "students": "Mysore Vasudevachar, Poochi Srinivasa Iyengar, Tiger Varadachariar, Konerirajapuram Vaidyanatha Ayyar", "sk": "", "sna": "", "other_awards": "", "bio": "Major guru who trained several towering figures; pivotal in spreading the Tyagaraja tradition.", "url": "https://en.wikipedia.org/wiki/Patnam_Subramania_Iyer"}, {"id": "T012", "name": "Kothavaasal Venkataramayya", "birth": null, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 2, "gurus": "Veena Kuppayyar", "guru_ids": "T005", "students": "Patnam Subramania Iyer, Tirukkodikaval Krishna Iyer", "sk": "", "sna": "", "other_awards": "", "bio": "Student of Veena Kuppayyar; co-guru of Patnam Subramania Iyer.", "url": ""}, {"id": "T013", "name": "Susarla Dakshinamurthy Sastry", "birth": 1860, "death": 1917, "place": "Andhra Pradesh", "language": "Telugu", "generation": 2, "gurus": "Manambuchavadi Venkatasubbayyar", "guru_ids": "T004", "students": "Tumarada Sangameswara Sastry, Parupalli Ramakrishnayya", "sk": "", "sna": "", "other_awards": "", "bio": "Important link in the Telugu lineage from Tyagaraja; trained key Andhra musicians.", "url": ""}, {"id": "T014", "name": "Veena Dhanammal", "birth": 1867, "death": 1938, "place": "Chennai, Tamil Nadu", "language": "Tamil", "generation": 2, "gurus": "Sathanur Panchanada Iyer, Tanjavur Kamakshi", "guru_ids": "T008, T015", "students": "T. Brinda, T. Muktha, K. S. Narayanaswamy, Kalpakam Swaminathan, S. Balachander", "sk": "", "sna": "", "other_awards": "", "bio": "Iconic veena player and vocalist; matriarch of the Dhanammal school known for authentic padams and javalis.", "url": "https://en.wikipedia.org/wiki/Veena_Dhanammal"}, {"id": "T015", "name": "Tanjavur Kamakshi", "birth": null, "death": null, "place": "Thanjavur, Tamil Nadu", "language": "Tamil", "generation": 2, "gurus": "Subbaraya Sastri", "guru_ids": "T007", "students": "Veena Dhanammal", "sk": "", "sna": "", "other_awards": "", "bio": "Daughter-in-law of Subbaraya Sastri; transmitted the Syama Sastri tradition to Dhanammal.", "url": ""}, {"id": "T016", "name": "Kachi Sastri", "birth": null, "death": null, "place": "Tamil Nadu", "language": "Telugu", "generation": 2, "gurus": "Subbaraya Sastri", "guru_ids": "T007", "students": "Kanchipuram Dhanakoti, Kanchipuram Kamakshi", "sk": "", "sna": "", "other_awards": "", "bio": "Son of Subbaraya Sastri; carried forward the Syama Sastri compositions.", "url": ""}, {"id": "T017", "name": "Tirukkodikaval Krishna Iyer", "birth": 1857, "death": 1913, "place": "Tirukkodikaval, Tamil Nadu", "language": "Tamil", "generation": 2, "gurus": "Sathanur Panchanada Iyer, Kothavaasal Venkataramayya", "guru_ids": "T008, T012", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Renowned vocalist in the Dikshitar tradition; noted for his austere and scholarly approach.", "url": "https://en.wikipedia.org/wiki/Tirukkodikaval_Krishna_Iyer"}, {"id": "T018", "name": "Padinaindumandapa Sambasiva Iyer", "birth": null, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 2, "gurus": "Maha Vaidyanatha Iyer, Subbaraya Sastri", "guru_ids": "T010, T007", "students": "Muthiah Bhagavatar, T. S. Sabhesha Iyer", "sk": "", "sna": "", "other_awards": "", "bio": "Linked the Maha Vaidyanatha Iyer and Subbaraya Sastri traditions.", "url": ""}, {"id": "T019", "name": "Madurai Pushpavanam", "birth": 1885, "death": 1920, "place": "Madurai, Tamil Nadu", "language": "Tamil", "generation": 2, "gurus": "Manambuchavadi Venkatasubbayyar", "guru_ids": "T004", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Early vocalist in the Tyagaraja tradition from the Madurai region.", "url": ""}, {"id": "T020", "name": "Ananthakrishna Iyer", "birth": null, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 2, "gurus": "Manambuchavadi Venkatasubbayyar", "guru_ids": "T004", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Disciple of Manambuchavadi Venkatasubbayyar.", "url": ""}, {"id": "T021", "name": "Mysore Vasudevachar", "birth": 1865, "death": 1961, "place": "Mysore, Karnataka", "language": "Kannada", "generation": 3, "gurus": "Patnam Subramania Iyer", "guru_ids": "T011", "students": "", "sk": "1935", "sna": "1954", "other_awards": "", "bio": "Vaggeyakara (composer-performer) of Mysore; composed in Kannada and Sanskrit; one of the earliest Sangeetha Kalanidhis.", "url": "https://en.wikipedia.org/wiki/Mysore_Vasudevachar"}, {"id": "T022", "name": "Poochi Srinivasa Iyengar", "birth": 1860, "death": 1919, "place": "Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "Patnam Subramania Iyer", "guru_ids": "T011", "students": "Ariyakudi Ramanuja Iyengar, G. N. Balasubramaniam", "sk": "", "sna": "", "other_awards": "", "bio": "Guru of Ariyakudi and GNB; instrumental in shaping the modern concert format.", "url": "https://en.wikipedia.org/wiki/Poochi_Srinivasa_Iyengar"}, {"id": "T023", "name": "Tiger Varadachariar", "birth": 1876, "death": 1950, "place": "Kanchipuram, Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "Patnam Subramania Iyer", "guru_ids": "T011", "students": "M. D. Ramanathan, T. R. Mahalingam, S. Rajam, Chitravina Narasimhan", "sk": "1932", "sna": "", "other_awards": "", "bio": "Commanding vocalist and pedagogue; Sangeetha Kalanidhi 1932; trained MDR and Mali.", "url": "https://en.wikipedia.org/wiki/Tiger_Varadachariar"}, {"id": "T024", "name": "T. S. Sabhesha Iyer", "birth": null, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "Maha Vaidyanatha Iyer, Padinaindumandapa Sambasiva Iyer", "guru_ids": "T010, T018", "students": "Musiri Subramania Iyer", "sk": "1934", "sna": "", "other_awards": "", "bio": "Sangeetha Kalanidhi 1934; guru of Musiri Subramania Iyer.", "url": ""}, {"id": "T025", "name": "Umayalpuram Swaminatha Iyer", "birth": null, "death": 1946, "place": "Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "Maha Vaidyanatha Iyer", "guru_ids": "T010", "students": "Maharajapuram Viswanatha Iyer", "sk": "1936", "sna": "", "other_awards": "", "bio": "Sangeetha Kalanidhi 1936; guru of Maharajapuram Viswanatha Iyer.", "url": ""}, {"id": "T026", "name": "Konerirajapuram Vaidyanatha Ayyar", "birth": 1878, "death": 1921, "place": "Konerirajapuram, Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "Patnam Subramania Iyer", "guru_ids": "T011", "students": "Papanasam Sivan, Mudicondan Venkatarama Iyer", "sk": "", "sna": "", "other_awards": "", "bio": "Brilliant but short-lived vocalist; guru of Papanasam Sivan and Mudicondan.", "url": "https://en.wikipedia.org/wiki/Konerirajapuram_Vaidyanatha_Iyer"}, {"id": "T027", "name": "Tumarada Sangameswara Sastry", "birth": 1874, "death": 1931, "place": "Andhra Pradesh", "language": "Telugu", "generation": 3, "gurus": "Susarla Dakshinamurthy Sastry", "guru_ids": "T013", "students": "Dwaram Venkataswamy Naidu", "sk": "", "sna": "", "other_awards": "", "bio": "Telugu guru who trained the legendary violinist Dwaram Venkataswamy Naidu.", "url": ""}, {"id": "T028", "name": "Parupalli Ramakrishnayya", "birth": 1883, "death": 1951, "place": "Andhra Pradesh", "language": "Telugu", "generation": 3, "gurus": "Susarla Dakshinamurthy Sastry", "guru_ids": "T013", "students": "M. Balamuralikrishna, Annavarapu Ramaswamy", "sk": "", "sna": "", "other_awards": "", "bio": "Guru of Balamuralikrishna; important Telugu lineage carrier.", "url": "https://en.wikipedia.org/wiki/Parupalli_Ramakrishnayya_Pantulu"}, {"id": "T029", "name": "Kanchipuram Dhanakoti", "birth": null, "death": null, "place": "Kanchipuram, Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "Kachi Sastri", "guru_ids": "T016", "students": "Kanchipuram Naina Pillai", "sk": "", "sna": "", "other_awards": "", "bio": "Transmitted Syama Sastri tradition through the Kanchipuram devadasi lineage.", "url": ""}, {"id": "T030", "name": "Kanchipuram Kamakshi", "birth": null, "death": null, "place": "Kanchipuram, Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "Kachi Sastri", "guru_ids": "T016", "students": "Kanchipuram Naina Pillai", "sk": "", "sna": "", "other_awards": "", "bio": "Transmitted Syama Sastri tradition alongside Kanchipuram Dhanakoti.", "url": ""}, {"id": "T031", "name": "T. Brinda", "birth": 1912, "death": 1996, "place": "Chennai, Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "Veena Dhanammal", "guru_ids": "T014", "students": "M. S. Subbulakshmi", "sk": "1976", "sna": "1965", "other_awards": "", "bio": "Granddaughter of Dhanammal; supreme exponent of padams and javalis; Sangeetha Kalanidhi 1976.", "url": "https://en.wikipedia.org/wiki/T._Brinda"}, {"id": "T032", "name": "T. Muktha", "birth": 1914, "death": 2007, "place": "Chennai, Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "Veena Dhanammal", "guru_ids": "T014", "students": "", "sk": "", "sna": "1972", "other_awards": "", "bio": "Granddaughter of Dhanammal; vocalist known for padams and javalis; SNA Award 1972.", "url": "https://en.wikipedia.org/wiki/T._Muktha"}, {"id": "T033", "name": "K. S. Narayanaswamy", "birth": 1914, "death": 1999, "place": "Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "Veena Dhanammal", "guru_ids": "T014", "students": "", "sk": "1979", "sna": "", "other_awards": "", "bio": "Veena player trained by Dhanammal; Sangeetha Kalanidhi 1979 (veena category, also vocalist).", "url": "https://en.wikipedia.org/wiki/K._S._Narayanaswamy"}, {"id": "T034", "name": "Kalpakam Swaminathan", "birth": 1922, "death": 2011, "place": "Chennai, Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "Veena Dhanammal", "guru_ids": "T014", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Granddaughter of Dhanammal; veena player who preserved the Dhanammal repertoire.", "url": ""}, {"id": "T035", "name": "S. Balachander", "birth": 1927, "death": 1990, "place": "Chennai, Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "Veena Dhanammal", "guru_ids": "T014", "students": "", "sk": "", "sna": "", "other_awards": "Padma Bhushan", "bio": "Veena virtuoso trained under Dhanammal; known for innovative approach; also a vocalist.", "url": "https://en.wikipedia.org/wiki/S._Balachander"}, {"id": "T036", "name": "Muthiah Bhagavatar", "birth": 1877, "death": 1945, "place": "Thanjavur, Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "Padinaindumandapa Sambasiva Iyer", "guru_ids": "T018", "students": "TL Venkatarama Iyer, Madurai Mani Iyer", "sk": "1930", "sna": "", "other_awards": "", "bio": "Composer-vocalist; Sangeetha Kalanidhi 1930; guru of Madurai Mani Iyer.", "url": "https://en.wikipedia.org/wiki/Muthiah_Bhagavatar"}, {"id": "T037", "name": "Musiri Subramania Iyer", "birth": 1899, "death": 1975, "place": "Musiri, Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "T. S. Sabhesha Iyer", "guru_ids": "T024", "students": "T. K. Govinda Rao, Bombay Sisters, S. R. Janakiraman, Mani Krishnaswamy, Suguna Purushothaman, K. S. Venkataraman, Suguna Varadachari, N. Rajam, Thylamba Krishnan, Kalpagam Swaminathan (student)", "sk": "1939", "sna": "1957", "other_awards": "Padma Bhushan", "bio": "Towering vocalist; Sangeetha Kalanidhi 1939, SNA 1957; guru to a vast number of next-generation artists.", "url": "https://en.wikipedia.org/wiki/Musiri_Subramania_Iyer"}, {"id": "T038", "name": "Ariyakudi Ramanuja Iyengar", "birth": 1890, "death": 1967, "place": "Ariyakudi, Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "Poochi Srinivasa Iyengar", "guru_ids": "T022", "students": "K. V. Narayanaswamy, B. Rajam Iyer, Alepey Venkatesan, Madurai N. Krishnan, Ambi Bhagavathar", "sk": "1938", "sna": "1952", "other_awards": "Padma Bhushan", "bio": "Revolutionized the Carnatic concert format (Ariyakudi format); Sangeetha Kalanidhi 1938; SNA 1952.", "url": "https://en.wikipedia.org/wiki/Ariyakudi_Ramanuja_Iyengar"}, {"id": "T039", "name": "Maharajapuram Viswanatha Iyer", "birth": 1896, "death": 1970, "place": "Maharajapuram, Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "Umayalpuram Swaminatha Iyer", "guru_ids": "T025", "students": "Semmangudi Srinivasa Iyer, Maharajapuram Santhanam", "sk": "1946", "sna": "1955", "other_awards": "Padma Bhushan", "bio": "Majestic vocalist; Sangeetha Kalanidhi 1946; SNA 1955; guru of Semmangudi.", "url": "https://en.wikipedia.org/wiki/Maharajapuram_Viswanatha_Iyer"}, {"id": "T040", "name": "M. D. Ramanathan", "birth": 1923, "death": 1984, "place": "Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "Tiger Varadachariar", "guru_ids": "T023", "students": "", "sk": "", "sna": "1974", "other_awards": "", "bio": "Unique vocalist with a distinctive low-pitched meditative style; SNA Award 1974.", "url": "https://en.wikipedia.org/wiki/M._D._Ramanathan"}, {"id": "T041", "name": "Dwaram Venkataswamy Naidu", "birth": 1893, "death": 1964, "place": "Visakhapatnam, Andhra Pradesh", "language": "Telugu", "generation": 4, "gurus": "Tumarada Sangameswara Sastry", "guru_ids": "T027", "students": "Sripada Pinakapani, Dwaram Mangathayaru", "sk": "1941", "sna": "", "other_awards": "Padma Shri", "bio": "Legendary violinist (also vocalist); Sangeetha Kalanidhi 1941; pivotal in the Andhra lineage.", "url": "https://en.wikipedia.org/wiki/Dwaram_Venkataswamy_Naidu"}, {"id": "T042", "name": "Kanchipuram Naina Pillai", "birth": 1887, "death": 1934, "place": "Kanchipuram, Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "Kanchipuram Dhanakoti, Kanchipuram Kamakshi", "guru_ids": "T029, T030", "students": "Chittoor Subramaniam Pillai", "sk": "", "sna": "", "other_awards": "", "bio": "Nagaswaram player and vocalist in the Syama Sastri lineage.", "url": ""}, {"id": "T043", "name": "Papanasam Sivan", "birth": 1890, "death": 1973, "place": "Papanasam, Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "Konerirajapuram Vaidyanatha Ayyar", "guru_ids": "T026", "students": "D. K. Pattammal, D. K. Jayaraman", "sk": "1971", "sna": "", "other_awards": "", "bio": "Prolific composer called 'Tamil Tyagaraja'; Sangeetha Kalanidhi 1971; over 2000 compositions.", "url": "https://en.wikipedia.org/wiki/Papanasam_Sivan"}, {"id": "T044", "name": "Mudicondan Venkatarama Iyer", "birth": 1897, "death": 1975, "place": "Mudicondan, Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "Konerirajapuram Vaidyanatha Ayyar", "guru_ids": "T026", "students": "R. Vedavalli", "sk": "1949", "sna": "1961", "other_awards": "", "bio": "Scholarly vocalist; Sangeetha Kalanidhi 1949; SNA 1961; guru of R. Vedavalli.", "url": "https://en.wikipedia.org/wiki/Mudicondan_Venkatarama_Iyer"}, {"id": "T045", "name": "TL Venkatarama Iyer", "birth": 1893, "death": 1971, "place": "Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "Muthiah Bhagavatar", "guru_ids": "T036", "students": "S. Rajam", "sk": "1944", "sna": "", "other_awards": "", "bio": "Musicologist; Sangeetha Kalanidhi 1944.", "url": "https://en.wikipedia.org/wiki/T._L._Venkatarama_Iyer"}, {"id": "T046", "name": "Madurai Mani Iyer", "birth": 1912, "death": 1968, "place": "Madurai, Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "Muthiah Bhagavatar", "guru_ids": "T036", "students": "", "sk": "1959", "sna": "1960", "other_awards": "Padma Bhushan", "bio": "One of the greatest Carnatic vocalists; Sangeetha Kalanidhi 1959; SNA 1960; known for emotional intensity.", "url": "https://en.wikipedia.org/wiki/Madurai_Mani_Iyer"}, {"id": "T047", "name": "G. N. Balasubramaniam", "birth": 1910, "death": 1965, "place": "Tiruppur, Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "Poochi Srinivasa Iyengar", "guru_ids": "T022", "students": "M. L. Vasanthakumari", "sk": "1958", "sna": "1959", "other_awards": "Padma Bhushan", "bio": "Revolutionary vocalist (GNB); introduced speed and flashy style; Sangeetha Kalanidhi 1958.", "url": "https://en.wikipedia.org/wiki/G._N._Balasubramaniam"}, {"id": "T048", "name": "M. S. Subbulakshmi", "birth": 1916, "death": 2004, "place": "Madurai, Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "T. Brinda, D. K. Pattammal, Semmangudi Srinivasa Iyer", "guru_ids": "T031, T061, T049", "students": "", "sk": "1968", "sna": "1956", "other_awards": "Bharat Ratna, Padma Vibhushan, Padma Bhushan", "bio": "Most celebrated Carnatic vocalist; Bharat Ratna; Sangeetha Kalanidhi 1968; UN General Assembly concert.", "url": "https://en.wikipedia.org/wiki/M._S._Subbulakshmi"}, {"id": "T049", "name": "Semmangudi Srinivasa Iyer", "birth": 1908, "death": 2003, "place": "Semmangudi, Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Maharajapuram Viswanatha Iyer", "guru_ids": "T039", "students": "P. S. Narayanaswamy, V. Subrahmaniam, T. N. Krishnan, R. Vedavalli, Ramnad Krishnan, N. Ramani, V. V. Ravi, Neyyattinkara Vasudevan, Chitravina Narasimhan, T. M. Krishna, M. S. Subbulakshmi", "sk": "1947", "sna": "1953", "other_awards": "Padma Vibhushan, Padma Bhushan", "bio": "Doyen of Carnatic music; Sangeetha Kalanidhi 1947; SNA 1953; guru to an extraordinary number of top musicians.", "url": "https://en.wikipedia.org/wiki/Semmangudi_Srinivasa_Iyer"}, {"id": "T050", "name": "M. Balamuralikrishna", "birth": 1930, "death": 2016, "place": "Sankaraguptam, Andhra Pradesh", "language": "Telugu", "generation": 4, "gurus": "Parupalli Ramakrishnayya", "guru_ids": "T028", "students": "", "sk": "1978", "sna": "1975", "other_awards": "Padma Vibhushan", "bio": "Multi-faceted genius; vocalist, composer, multi-instrumentalist; Sangeetha Kalanidhi 1978; SNA 1975; created new ragas.", "url": "https://en.wikipedia.org/wiki/M._Balamuralikrishna"}, {"id": "T051", "name": "T. R. Mahalingam (Mali)", "birth": 1926, "death": 1986, "place": "Pudukottai, Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "Tiger Varadachariar", "guru_ids": "T023", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Legendary flute maestro who was also a gifted vocalist; child prodigy trained under Tiger Varadachariar.", "url": "https://en.wikipedia.org/wiki/T._R._Mahalingam"}, {"id": "T052", "name": "Chitravina Narasimhan", "birth": null, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "Tiger Varadachariar, Semmangudi Srinivasa Iyer", "guru_ids": "T023, T049", "students": "T. M. Krishna, N. Ravikiran", "sk": "", "sna": "", "other_awards": "", "bio": "Chitravina player; guru of T. M. Krishna and N. Ravikiran.", "url": ""}, {"id": "T053", "name": "S. Rajam", "birth": 1919, "death": 2010, "place": "Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "Tiger Varadachariar, TL Venkatarama Iyer", "guru_ids": "T023, T045", "students": "", "sk": "", "sna": "1991", "other_awards": "Padma Bhushan", "bio": "Vocalist and famous painter of Carnatic music themes; SNA 1991.", "url": "https://en.wikipedia.org/wiki/S._Rajam"}, {"id": "T054", "name": "Chembai Vaidyanatha Bhagavatar", "birth": 1896, "death": 1974, "place": "Chembai, Kerala", "language": "Malayalam", "generation": 4, "gurus": "multiple gurus", "guru_ids": "", "students": "K. J. Yesudas", "sk": "1951", "sna": "1958", "other_awards": "Padma Bhushan", "bio": "Powerful vocalist from Kerala; Sangeetha Kalanidhi 1951; SNA 1958; known for bhakti-filled concerts.", "url": "https://en.wikipedia.org/wiki/Chembai_Vaidyanatha_Bhagavatar"}, {"id": "T055", "name": "Annavarapu Ramaswamy", "birth": null, "death": null, "place": "Andhra Pradesh", "language": "Telugu", "generation": 4, "gurus": "Parupalli Ramakrishnayya", "guru_ids": "T028", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Telugu vocalist in the Parupalli lineage.", "url": ""}, {"id": "T056", "name": "K. V. Narayanaswamy", "birth": 1923, "death": 2002, "place": "Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Ariyakudi Ramanuja Iyengar", "guru_ids": "T038", "students": "Ramnad Krishnan, R. K. Srikantan, K. J. Yesudas", "sk": "1986", "sna": "1976", "other_awards": "Padma Bhushan", "bio": "Devotional vocalist; Sangeetha Kalanidhi 1986; SNA 1976; known for intense bhakti and manodharma.", "url": "https://en.wikipedia.org/wiki/K._V._Narayanaswamy"}, {"id": "T057", "name": "B. Rajam Iyer", "birth": 1922, "death": 2009, "place": "Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Ariyakudi Ramanuja Iyengar", "guru_ids": "T038", "students": "", "sk": "1987", "sna": "1986", "other_awards": "", "bio": "Senior vocalist; Sangeetha Kalanidhi 1987; SNA 1986.", "url": "https://en.wikipedia.org/wiki/B._Rajam_Iyer"}, {"id": "T058", "name": "Alepey Venkatesan", "birth": null, "death": null, "place": "Kerala", "language": "Tamil", "generation": 5, "gurus": "Ariyakudi Ramanuja Iyengar", "guru_ids": "T038", "students": "T. N. Krishnan (also student of Semmangudi)", "sk": "", "sna": "", "other_awards": "", "bio": "Disciple of Ariyakudi.", "url": ""}, {"id": "T059", "name": "Madurai N. Krishnan", "birth": null, "death": 2018, "place": "Madurai, Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Ariyakudi Ramanuja Iyengar", "guru_ids": "T038", "students": "", "sk": "", "sna": "1987", "other_awards": "", "bio": "Vocalist from Madurai; SNA 1987.", "url": ""}, {"id": "T060", "name": "Ambi Bhagavathar", "birth": null, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Ariyakudi Ramanuja Iyengar", "guru_ids": "T038", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Disciple of Ariyakudi.", "url": ""}, {"id": "T061", "name": "D. K. Pattammal", "birth": 1919, "death": 2009, "place": "Kanchipuram, Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Papanasam Sivan", "guru_ids": "T043", "students": "D. K. Jayaraman, M. S. Subbulakshmi (also learnt from her)", "sk": "1970", "sna": "1962", "other_awards": "Padma Vibhushan, Padma Bhushan", "bio": "Pioneer female vocalist who broke gender barriers in kritis; Sangeetha Kalanidhi 1970; SNA 1962.", "url": "https://en.wikipedia.org/wiki/D._K._Pattammal"}, {"id": "T062", "name": "D. K. Jayaraman", "birth": 1928, "death": 1991, "place": "Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Papanasam Sivan, D. K. Pattammal", "guru_ids": "T043, T061", "students": "", "sk": "1990", "sna": "1983", "other_awards": "", "bio": "Son/disciple of DK Pattammal; Sangeetha Kalanidhi 1990; SNA 1983.", "url": "https://en.wikipedia.org/wiki/D._K._Jayaraman"}, {"id": "T063", "name": "T. K. Govinda Rao", "birth": 1929, "death": 2011, "place": "Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Musiri Subramania Iyer", "guru_ids": "T037", "students": "Sanjay Subrahmanyan, S. Sowmya", "sk": "1999", "sna": "1996", "other_awards": "", "bio": "Scholarly vocalist; Sangeetha Kalanidhi 1999; SNA 1996; guru of Sanjay Subrahmanyan.", "url": "https://en.wikipedia.org/wiki/T._K._Govinda_Rao"}, {"id": "T064", "name": "Bombay Sisters (C. Saroja & C. Lalitha)", "birth": 1936, "death": null, "place": "Chennai, Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Musiri Subramania Iyer", "guru_ids": "T037", "students": "", "sk": "2010", "sna": "2004", "other_awards": "", "bio": "Vocal duo; Sangeetha Kalanidhi 2010; SNA 2004; known for devotional music.", "url": "https://en.wikipedia.org/wiki/Bombay_Sisters"}, {"id": "T065", "name": "Mani Krishnaswamy", "birth": null, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Musiri Subramania Iyer", "guru_ids": "T037", "students": "", "sk": "1993", "sna": "1987", "other_awards": "", "bio": "Sangeetha Kalanidhi 1993; SNA 1987.", "url": "https://en.wikipedia.org/wiki/Mani_Krishnaswami"}, {"id": "T066", "name": "S. R. Janakiraman", "birth": 1928, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Musiri Subramania Iyer", "guru_ids": "T037", "students": "S. Sowmya", "sk": "", "sna": "2000", "other_awards": "", "bio": "Vocalist and musicologist; SNA 2000.", "url": "https://en.wikipedia.org/wiki/S._R._Janakiraman"}, {"id": "T067", "name": "Suguna Purushothaman", "birth": null, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Musiri Subramania Iyer", "guru_ids": "T037", "students": "", "sk": "", "sna": "2010", "other_awards": "", "bio": "Vocalist; SNA 2010.", "url": "https://en.wikipedia.org/wiki/Suguna_Purushothaman"}, {"id": "T068", "name": "Suguna Varadachari", "birth": 1945, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Musiri Subramania Iyer", "guru_ids": "T037", "students": "", "sk": "", "sna": "2015", "other_awards": "", "bio": "Vocalist; SNA 2015.", "url": "https://en.wikipedia.org/wiki/Suguna_Varadachari"}, {"id": "T069", "name": "N. Rajam", "birth": 1938, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Musiri Subramania Iyer", "guru_ids": "T037", "students": "", "sk": "", "sna": "1990", "other_awards": "Padma Bhushan", "bio": "Renowned violinist who also received Carnatic vocal training from Musiri; SNA 1990 (Hindustani violin).", "url": "https://en.wikipedia.org/wiki/N._Rajam"}, {"id": "T070", "name": "R. Vedavalli", "birth": 1935, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Semmangudi Srinivasa Iyer, Mudicondan Venkatarama Iyer", "guru_ids": "T049, T044", "students": "", "sk": "2000", "sna": "1995", "other_awards": "Padma Bhushan", "bio": "Grand old lady of Carnatic music; Sangeetha Kalanidhi 2000; SNA 1995.", "url": "https://en.wikipedia.org/wiki/R._Vedavalli"}, {"id": "T071", "name": "Sripada Pinakapani", "birth": 1913, "death": 2013, "place": "Andhra Pradesh", "language": "Telugu", "generation": 5, "gurus": "Dwaram Venkataswamy Naidu", "guru_ids": "T041", "students": "Voleti Venkateswarulu, Nookala Chinna Satyanarayana, Nedunuri Krishnamurthy", "sk": "1983", "sna": "1977", "other_awards": "Padma Shri", "bio": "Telugu vocalist; Sangeetha Kalanidhi 1983; SNA 1977; centenarian musician.", "url": "https://en.wikipedia.org/wiki/Sripada_Pinakapani"}, {"id": "T072", "name": "Dwaram Mangathayaru", "birth": 1925, "death": null, "place": "Andhra Pradesh", "language": "Telugu", "generation": 5, "gurus": "Dwaram Venkataswamy Naidu", "guru_ids": "T041", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Violinist; daughter of Dwaram Venkataswamy Naidu.", "url": ""}, {"id": "T073", "name": "Chittoor Subramaniam Pillai", "birth": 1898, "death": 1975, "place": "Chittoor, Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Kanchipuram Naina Pillai", "guru_ids": "T042", "students": "Madurai Somu", "sk": "1954", "sna": "1964", "other_awards": "", "bio": "Nagaswaram artist and vocalist; Sangeetha Kalanidhi 1954; SNA 1964.", "url": "https://en.wikipedia.org/wiki/Chittoor_Subramaniam_Pillai"}, {"id": "T074", "name": "Maharajapuram Santhanam", "birth": 1928, "death": 1992, "place": "Maharajapuram, Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Maharajapuram Viswanatha Iyer", "guru_ids": "T039", "students": "Maharajapuram Ramachandran", "sk": "1989", "sna": "1984", "other_awards": "Padma Bhushan", "bio": "Son of Maharajapuram Viswanatha Iyer; Sangeetha Kalanidhi 1989; SNA 1984.", "url": "https://en.wikipedia.org/wiki/Maharajapuram_Santhanam"}, {"id": "T075", "name": "Nedunuri Krishnamurthy", "birth": 1927, "death": 2014, "place": "Andhra Pradesh", "language": "Telugu", "generation": 5, "gurus": "Sripada Pinakapani", "guru_ids": "T071", "students": "", "sk": "1991", "sna": "1986", "other_awards": "Padma Shri", "bio": "Telugu vocalist; Sangeetha Kalanidhi 1991; SNA 1986.", "url": "https://en.wikipedia.org/wiki/Nedunuri_Krishnamurthy"}, {"id": "T076", "name": "M. L. Vasanthakumari", "birth": 1928, "death": 1990, "place": "Madurai, Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "G. N. Balasubramaniam", "guru_ids": "T047", "students": "Sudha Ragunathan", "sk": "1977", "sna": "1970", "other_awards": "Padma Bhushan", "bio": "Leading female vocalist; Sangeetha Kalanidhi 1977; SNA 1970; known for GNB school brilliance.", "url": "https://en.wikipedia.org/wiki/M._L._Vasanthakumari"}, {"id": "T077", "name": "Alathur Brothers", "birth": 1907, "death": 1982, "place": "Alathur, Kerala", "language": "Tamil", "generation": 5, "gurus": "Semmangudi Srinivasa Iyer", "guru_ids": "T049", "students": "", "sk": "1964/1965", "sna": "1968", "other_awards": "", "bio": "Vocal duo (Sivasubramanya Iyer & Srinivasa Iyer); Sangeetha Kalanidhi 1964-65; SNA 1968.", "url": "https://en.wikipedia.org/wiki/Alathur_Brothers"}, {"id": "T078", "name": "T. M. Thiagarajan", "birth": 1920, "death": 2003, "place": "Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "Semmangudi Srinivasa Iyer", "guru_ids": "T049", "students": "", "sk": "1981", "sna": "1982", "other_awards": "", "bio": "Sangeetha Kalanidhi 1981; SNA 1982.", "url": "https://en.wikipedia.org/wiki/T._M._Thiagarajan"}, {"id": "T079", "name": "P. S. Narayanaswamy", "birth": 1934, "death": 2020, "place": "Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Semmangudi Srinivasa Iyer", "guru_ids": "T049", "students": "", "sk": "", "sna": "2005", "other_awards": "Padma Shri", "bio": "Devotional vocalist; disciple of Semmangudi; SNA 2005; known for austere style.", "url": "https://en.wikipedia.org/wiki/P._S._Narayanaswamy"}, {"id": "T080", "name": "T. N. Krishnan", "birth": 1928, "death": 2020, "place": "Kerala", "language": "Tamil-Malayalam", "generation": 6, "gurus": "Semmangudi Srinivasa Iyer, Alepey Venkatesan", "guru_ids": "T049, T058", "students": "", "sk": "1980", "sna": "", "other_awards": "Padma Bhushan", "bio": "Violin maestro; Sangeetha Kalanidhi 1980; trained under Semmangudi.", "url": "https://en.wikipedia.org/wiki/T._N._Krishnan"}, {"id": "T081", "name": "Neyyattinkara Vasudevan", "birth": 1940, "death": 2008, "place": "Neyyattinkara, Kerala", "language": "Malayalam", "generation": 6, "gurus": "Semmangudi Srinivasa Iyer", "guru_ids": "T049", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Kerala vocalist; disciple of Semmangudi.", "url": ""}, {"id": "T082", "name": "V. V. Ravi", "birth": 1954, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Semmangudi Srinivasa Iyer", "guru_ids": "T049", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Vocalist; disciple of Semmangudi.", "url": ""}, {"id": "T083", "name": "V. Subrahmaniam", "birth": 1934, "death": 2021, "place": "Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Semmangudi Srinivasa Iyer", "guru_ids": "T049", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Vocalist; disciple of Semmangudi.", "url": ""}, {"id": "T084", "name": "Voleti Venkateswarulu", "birth": 1920, "death": 1989, "place": "Andhra Pradesh", "language": "Telugu", "generation": 6, "gurus": "Sripada Pinakapani", "guru_ids": "T071", "students": "", "sk": "", "sna": "1985", "other_awards": "", "bio": "Telugu vocalist; SNA 1985.", "url": ""}, {"id": "T085", "name": "Nookala Chinna Satyanarayana", "birth": 1923, "death": 2013, "place": "Andhra Pradesh", "language": "Telugu", "generation": 6, "gurus": "Sripada Pinakapani", "guru_ids": "T071", "students": "Garimella Balakrishna Prasad, Malladi Suri Babu", "sk": "", "sna": "1988", "other_awards": "Padma Shri", "bio": "Telugu vocalist; SNA 1988.", "url": "https://en.wikipedia.org/wiki/Nookala_Chinna_Satyanarayana"}, {"id": "T086", "name": "Ramnad Krishnan", "birth": 1918, "death": 1973, "place": "Ramnad, Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Semmangudi Srinivasa Iyer, K. V. Narayanaswamy", "guru_ids": "T049, T056", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Vocalist known for propagating Carnatic music internationally.", "url": "https://en.wikipedia.org/wiki/Ramnad_Krishnan"}, {"id": "T087", "name": "R. K. Srikantan", "birth": 1920, "death": 2014, "place": "Karnataka", "language": "Kannada", "generation": 6, "gurus": "K. V. Narayanaswamy", "guru_ids": "T056", "students": "", "sk": "1995", "sna": "1979", "other_awards": "Padma Bhushan", "bio": "Kannada vocalist; Sangeetha Kalanidhi 1995; SNA 1979.", "url": "https://en.wikipedia.org/wiki/R._K._Srikantan"}, {"id": "T088", "name": "Sanjay Subrahmanyan", "birth": 1968, "death": null, "place": "Chennai, Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "T. K. Govinda Rao", "guru_ids": "T063", "students": "", "sk": "2015", "sna": "", "other_awards": "Padma Shri", "bio": "Leading contemporary vocalist; Sangeetha Kalanidhi 2015.", "url": "https://en.wikipedia.org/wiki/Sanjay_Subrahmanyan"}, {"id": "T089", "name": "S. Sowmya", "birth": 1969, "death": null, "place": "Chennai, Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "T. K. Govinda Rao, S. R. Janakiraman", "guru_ids": "T063, T066", "students": "", "sk": "2019", "sna": "", "other_awards": "Padma Shri", "bio": "Leading contemporary vocalist; Sangeetha Kalanidhi 2019.", "url": "https://en.wikipedia.org/wiki/S._Sowmya"}, {"id": "T090", "name": "K. J. Yesudas", "birth": 1940, "death": null, "place": "Kochi, Kerala", "language": "Malayalam", "generation": 6, "gurus": "K. V. Narayanaswamy, Chembai Vaidyanatha Bhagavatar", "guru_ids": "T056, T054", "students": "", "sk": "", "sna": "", "other_awards": "Padma Vibhushan, Padma Bhushan", "bio": "Iconic vocalist and playback singer; known for classical concerts and film music.", "url": "https://en.wikipedia.org/wiki/K._J._Yesudas"}, {"id": "T091", "name": "N. Ramani", "birth": 1934, "death": 2015, "place": "Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Semmangudi Srinivasa Iyer", "guru_ids": "T049", "students": "", "sk": "1996", "sna": "", "other_awards": "Padma Bhushan", "bio": "Flute maestro; Sangeetha Kalanidhi 1996.", "url": "https://en.wikipedia.org/wiki/N._Ramani"}, {"id": "T092", "name": "Madurai Somu", "birth": 1919, "death": 1989, "place": "Madurai, Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Chittoor Subramaniam Pillai", "guru_ids": "T073", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Vocalist in the Syama Sastri lineage.", "url": ""}, {"id": "T093", "name": "T. V. Sankaranarayanan", "birth": 1945, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Madurai Mani Iyer, Semmangudi Srinivasa Iyer", "guru_ids": "T046, T049", "students": "", "sk": "2003", "sna": "1990", "other_awards": "Padma Bhushan", "bio": "Leading vocalist; Sangeetha Kalanidhi 2003; SNA 1990; known for richness of voice.", "url": "https://en.wikipedia.org/wiki/T._V._Sankaranarayanan"}, {"id": "T094", "name": "T. M. Krishna", "birth": 1976, "death": null, "place": "Chennai, Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Chitravina Narasimhan, Semmangudi Srinivasa Iyer", "guru_ids": "T052, T049", "students": "", "sk": "2024", "sna": "", "other_awards": "Padma Shri, Magsaysay Award", "bio": "Vocalist, author, activist; Sangeetha Kalanidhi 2024; known for democratizing Carnatic music.", "url": "https://en.wikipedia.org/wiki/T._M._Krishna"}, {"id": "T095", "name": "N. Ravikiran", "birth": 1967, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Chitravina Narasimhan", "guru_ids": "T052", "students": "", "sk": "2017", "sna": "", "other_awards": "", "bio": "Chitravina player and composer; Sangeetha Kalanidhi 2017 (returned in 2024).", "url": "https://en.wikipedia.org/wiki/N._Ravikiran"}, {"id": "T096", "name": "T. N. Seshagopalan", "birth": 1948, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Semmangudi Srinivasa Iyer", "guru_ids": "T049", "students": "", "sk": "2006", "sna": "", "other_awards": "Padma Bhushan", "bio": "Vocalist known for technical brilliance; Sangeetha Kalanidhi 2006.", "url": "https://en.wikipedia.org/wiki/T._N._Seshagopalan"}, {"id": "T097", "name": "Trichur V. Ramachandran", "birth": 1935, "death": null, "place": "Trichur, Kerala", "language": "Malayalam", "generation": 6, "gurus": "Semmangudi Srinivasa Iyer", "guru_ids": "T049", "students": "", "sk": "2012", "sna": "2003", "other_awards": "", "bio": "Kerala vocalist; Sangeetha Kalanidhi 2012; SNA 2003.", "url": "https://en.wikipedia.org/wiki/Trichur_V._Ramachandran"}, {"id": "T098", "name": "Sudha Ragunathan", "birth": 1956, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "M. L. Vasanthakumari", "guru_ids": "T076", "students": "", "sk": "2013", "sna": "", "other_awards": "Padma Bhushan", "bio": "Leading contemporary vocalist; Sangeetha Kalanidhi 2013; popularized Carnatic music globally.", "url": "https://en.wikipedia.org/wiki/Sudha_Ragunathan"}, {"id": "T099", "name": "Aruna Sairam", "birth": 1952, "death": null, "place": "Mumbai", "language": "Tamil", "generation": 6, "gurus": "T. Brinda", "guru_ids": "T031", "students": "", "sk": "2018", "sna": "2013", "other_awards": "Padma Shri", "bio": "Vocalist known for eclectic repertoire; Sangeetha Kalanidhi 2018; SNA 2013.", "url": "https://en.wikipedia.org/wiki/Aruna_Sairam"}, {"id": "T100", "name": "Neyveli Santhanagopalan", "birth": 1957, "death": null, "place": "Neyveli, Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Semmangudi Srinivasa Iyer", "guru_ids": "T049", "students": "", "sk": "2020", "sna": "2014", "other_awards": "Padma Shri", "bio": "Vocalist; Sangeetha Kalanidhi 2020; SNA 2014.", "url": "https://en.wikipedia.org/wiki/Neyveli_Santhanagopalan"}, {"id": "T101", "name": "Bombay Jayashri", "birth": 1961, "death": null, "place": "Mumbai", "language": "Tamil", "generation": 6, "gurus": "T. R. Balamani, Lalgudi Jayaraman", "guru_ids": "T108", "students": "", "sk": "2023", "sna": "2023", "other_awards": "Padma Shri", "bio": "Vocalist and Oscar-nominated singer; Sangeetha Kalanidhi 2023; SNA 2023.", "url": "https://en.wikipedia.org/wiki/Bombay_Jayashri"}, {"id": "T102", "name": "T. V. Gopalakrishnan", "birth": 1936, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Semmangudi Srinivasa Iyer", "guru_ids": "T049", "students": "", "sk": "2014", "sna": "", "other_awards": "Padma Shri", "bio": "Multi-talented vocalist and mridangam player; Sangeetha Kalanidhi 2014.", "url": "https://en.wikipedia.org/wiki/T._V._Gopalakrishnan"}, {"id": "T103", "name": "Maharajapuram Ramachandran", "birth": null, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Maharajapuram Santhanam", "guru_ids": "T074", "students": "", "sk": "", "sna": "2022", "other_awards": "", "bio": "Son of Maharajapuram Santhanam; SNA 2022.", "url": ""}, {"id": "T104", "name": "O. S. Thyagarajan", "birth": 1943, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "Semmangudi Srinivasa Iyer", "guru_ids": "T049", "students": "", "sk": "", "sna": "2012", "other_awards": "", "bio": "Vocalist; SNA 2012.", "url": "https://en.wikipedia.org/wiki/O._S._Thyagarajan"}, {"id": "T105", "name": "Parassala B. Ponnammal", "birth": 1924, "death": null, "place": "Kerala", "language": "Malayalam", "generation": 6, "gurus": "Semmangudi Srinivasa Iyer", "guru_ids": "T049", "students": "", "sk": "", "sna": "2009", "other_awards": "Padma Shri", "bio": "Kerala vocalist; SNA 2009; one of the oldest active performers.", "url": "https://en.wikipedia.org/wiki/Parassala_B._Ponnammal"}, {"id": "T106", "name": "Garimella Balakrishna Prasad", "birth": 1948, "death": null, "place": "Andhra Pradesh", "language": "Telugu", "generation": 7, "gurus": "Nookala Chinna Satyanarayana", "guru_ids": "T085", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Telugu vocalist continuing the Nookala lineage.", "url": ""}, {"id": "T107", "name": "Malladi Suri Babu", "birth": 1950, "death": 2022, "place": "Andhra Pradesh", "language": "Telugu", "generation": 7, "gurus": "Nookala Chinna Satyanarayana", "guru_ids": "T085", "students": "Malladi Brothers", "sk": "", "sna": "", "other_awards": "", "bio": "Telugu vocalist; father and guru of the Malladi Brothers.", "url": ""}, {"id": "T108", "name": "Lalgudi Jayaraman", "birth": 1930, "death": 2013, "place": "Tamil Nadu", "language": "Tamil", "generation": 4, "gurus": "V. R. Gopala Iyer (Lalgudi)", "guru_ids": "T120", "students": "G. J. R. Krishnan, Lalgudi Vijayalakshmi, Bombay Jayashri", "sk": "", "sna": "", "other_awards": "Padma Bhushan", "bio": "Legendary violinist, vocalist and composer; pioneer of the Lalgudi Bani; trained by his father V.R. Gopala Iyer in a lineage tracing to Tyagaraja.", "url": "https://en.wikipedia.org/wiki/Lalgudi_Jayaraman"}, {"id": "T109", "name": "Malladi Brothers (Ravi & Sreeram)", "birth": 1970, "death": null, "place": "Andhra Pradesh", "language": "Telugu", "generation": 8, "gurus": "Malladi Suri Babu", "guru_ids": "T107", "students": "", "sk": "", "sna": "", "other_awards": "", "bio": "Telugu vocal duo; sons of Malladi Suri Babu.", "url": ""}, {"id": "T110", "name": "Manda Sudharani", "birth": null, "death": null, "place": "Andhra Pradesh", "language": "Telugu", "generation": 6, "gurus": "", "guru_ids": "", "students": "", "sk": "", "sna": "2022", "other_awards": "", "bio": "Telugu vocalist; SNA 2022.", "url": ""}, {"id": "T111", "name": "Charumathi Ramachandran", "birth": null, "death": null, "place": "Tamil Nadu", "language": "Tamil", "generation": 6, "gurus": "", "guru_ids": "", "students": "", "sk": "", "sna": "2019", "other_awards": "", "bio": "Vocalist; SNA 2019.", "url": ""}, {"id": "T112", "name": "Pala C. K. Ramachandran", "birth": null, "death": null, "place": "Kerala", "language": "Malayalam", "generation": 6, "gurus": "", "guru_ids": "", "students": "", "sk": "", "sna": "2019", "other_awards": "", "bio": "Carnatic vocalist from Kerala; SNA 2019.", "url": ""}, {"id": "T113", "name": "K. Omanakutty", "birth": null, "death": null, "place": "Kerala", "language": "Malayalam", "generation": 6, "gurus": "", "guru_ids": "", "students": "", "sk": "", "sna": "2016", "other_awards": "", "bio": "Kerala Carnatic vocalist; SNA 2016.", "url": "https://en.wikipedia.org/wiki/K._Omanakutty"}, {"id": "T114", "name": "M. S. Sheela", "birth": null, "death": null, "place": "Karnataka", "language": "Kannada", "generation": 6, "gurus": "", "guru_ids": "", "students": "", "sk": "", "sna": "2017", "other_awards": "", "bio": "Carnatic vocalist from Karnataka; SNA 2017.", "url": "https://en.wikipedia.org/wiki/M._S._Sheela"}, {"id": "T115", "name": "Neela Ramgopal", "birth": null, "death": null, "place": "Karnataka", "language": "Kannada", "generation": 6, "gurus": "", "guru_ids": "", "students": "", "sk": "", "sna": "2016", "other_awards": "", "bio": "Carnatic vocalist from Karnataka; SNA 2016.", "url": "https://en.wikipedia.org/wiki/Neela_Ramgopal"}, {"id": "T116", "name": "Hyderabad Brothers (D. Seshachari & D. Raghavachari)", "birth": 1935, "death": null, "place": "Hyderabad, Telangana", "language": "Telugu", "generation": 6, "gurus": "", "guru_ids": "", "students": "", "sk": "", "sna": "2013", "other_awards": "", "bio": "Telugu vocal duo from Hyderabad; SNA 2013.", "url": "https://en.wikipedia.org/wiki/Hyderabad_Brothers"}, {"id": "T117", "name": "B. Devendrappa", "birth": 1917, "death": 1989, "place": "Karnataka", "language": "Kannada", "generation": 5, "gurus": "", "guru_ids": "", "students": "", "sk": "", "sna": "1963", "other_awards": "", "bio": "Kannada vocalist; SNA 1963.", "url": "https://en.wikipedia.org/wiki/B._Devendrappa"}, {"id": "T118", "name": "Dandapani Desikar", "birth": 1907, "death": 1987, "place": "Tamil Nadu", "language": "Tamil", "generation": 5, "gurus": "", "guru_ids": "", "students": "", "sk": "", "sna": "1969", "other_awards": "", "bio": "Vocalist and film composer; SNA 1969.", "url": "https://en.wikipedia.org/wiki/Dandapani_Desikar"}, {"id": "T119", "name": "Shankar Sastry", "birth": null, "death": null, "place": "Andhra Pradesh", "language": "Telugu", "generation": 6, "gurus": "", "guru_ids": "", "students": "", "sk": "", "sna": "2023", "other_awards": "", "bio": "Telugu Carnatic vocalist; SNA 2023.", "url": ""}, {"id": "T120", "name": "V. R. Gopala Iyer (Lalgudi)", "birth": 1900, "death": 1979, "place": "Lalgudi, Tamil Nadu", "language": "Tamil", "generation": 3, "gurus": "", "guru_ids": "", "students": "Lalgudi Jayaraman", "sk": "", "sna": "", "other_awards": "", "bio": "Violinist, vocalist and teacher from Lalgudi; father and guru of Lalgudi Jayaraman. Descended from Lalgudi Rama Iyer, a direct disciple of Tyagaraja. Ran a music school in Lalgudi training many students.", "url": "http://www.carnaticcorner.com/articles/gopalaiyer.htm"}];
+
+const colorMap = {
+  'Telugu':'#e74c3c','Tamil':'#58a6ff','Tamil-Telugu':'#e67e22','Tamil-Malayalam':'#7986cb',
+  'Kannada':'#2ecc71','Malayalam':'#9b59b6','Malayali':'#9b59b6','Tamil/Sanskrit':'#58a6ff',
+  'Kannada-Brahmin':'#27ae60'
+};
+function getColor(d){if(d.generation===0)return'#d4a843';return colorMap[d.language]||'#8b949e'}
+function getRadius(d){
+  if(d.generation===0) return 20;
+  const isAwardee = d.sk || d.sna;
+  if(d.generation<=2) return isAwardee?13:11;
+  return isAwardee?10:7;
+}
+function hasAward(d){return !!(d.sk||d.sna)}
+
+// Build links from guru_ids
+const nodeMap = {};
+DATA.forEach(d=>{nodeMap[d.id]=d});
+const links = [];
+DATA.forEach(d=>{
+  if(d.guru_ids){
+    d.guru_ids.split(',').map(s=>s.trim()).filter(Boolean).forEach(gid=>{
+      if(nodeMap[gid]) links.push({source:gid, target:d.id});
+    });
+  }
+});
+
+const width = window.innerWidth;
+const height = window.innerHeight - 56;
+
+const svg = d3.select('#graph').attr('width',width).attr('height',height);
+const g = svg.append('g');
+
+const zoom = d3.zoom().scaleExtent([0.15,4]).on('zoom',e=>g.attr('transform',e.transform));
+svg.call(zoom);
+
+const simulation = d3.forceSimulation(DATA)
+  .force('link', d3.forceLink(links).id(d=>d.id).distance(70).strength(.6))
+  .force('charge', d3.forceManyBody().strength(-250))
+  .force('center', d3.forceCenter(width/2, height/2))
+  .force('y', d3.forceY().y(d=>60+d.generation*80).strength(.35))
+  .force('collision', d3.forceCollide().radius(d=>getRadius(d)+4))
+  .alphaDecay(.02);
+
+// Arrow marker
+svg.append('defs').append('marker').attr('id','arrow').attr('viewBox','0 0 10 6')
+  .attr('refX',10).attr('refY',3).attr('markerWidth',8).attr('markerHeight',5)
+  .attr('orient','auto').append('path').attr('d','M0,0 L10,3 L0,6').attr('fill','#30363d').attr('opacity',.4);
+
+const link = g.append('g').selectAll('line').data(links).enter().append('line')
+  .attr('class','link').attr('stroke','#30363d').attr('stroke-width',1.2)
+  .attr('marker-end','url(#arrow)');
+
+const node = g.append('g').selectAll('.node').data(DATA).enter().append('g')
+  .attr('class',d=>'node'+(d.generation===0?' trinity':'')+(hasAward(d)?' awardee':''))
+  .call(d3.drag().on('start',dragS).on('drag',dragD).on('end',dragE));
+
+node.append('circle').attr('r',d=>getRadius(d))
+  .attr('fill',d=>getColor(d))
+  .attr('stroke',d=>{if(hasAward(d))return'#d4a843';return d3.color(getColor(d)).darker(.4)})
+  .attr('stroke-width',d=>hasAward(d)?2.5:1.5);
+
+node.append('text').attr('dy',d=>getRadius(d)+11).attr('text-anchor','middle')
+  .text(d=>d.name.length>22?d.name.substring(0,20)+'…':d.name);
+
+// Click node -> persistent subtree highlight + open detail panel
+node.on('click',(e,d)=>{e.stopPropagation();openDetail(d)});
+
+// Hover -> temporary subtree highlight only when nothing is click-selected
+node.on('mouseover',(e,d)=>{if(!selectedNode) highlightSubtree(d,true)})
+  .on('mouseout',()=>{if(!selectedNode) clearHighlight()});
+
+svg.on('click',()=>{closeDetail();document.getElementById('issuesPanel').classList.remove('open')});
+
+simulation.on('tick',()=>{
+  link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+    .attr('x2',d=>{
+      const dx=d.target.x-d.source.x,dy=d.target.y-d.source.y;
+      const dist=Math.sqrt(dx*dx+dy*dy)||1;
+      return d.target.x - dx/dist*getRadius(d.target);
+    })
+    .attr('y2',d=>{
+      const dx=d.target.x-d.source.x,dy=d.target.y-d.source.y;
+      const dist=Math.sqrt(dx*dx+dy*dy)||1;
+      return d.target.y - dy/dist*getRadius(d.target);
+    });
+  node.attr('transform',d=>`translate(${d.x},${d.y})`);
+});
+
+// Build adjacency maps for full subtree traversal
+const childrenOf = {};
+const parentsOf = {};
+links.forEach(l=>{
+  const sid = typeof l.source==='object'?l.source.id:l.source;
+  const tid = typeof l.target==='object'?l.target.id:l.target;
+  if(!childrenOf[sid]) childrenOf[sid]=[];
+  childrenOf[sid].push(tid);
+  if(!parentsOf[tid]) parentsOf[tid]=[];
+  parentsOf[tid].push(sid);
+});
+function getDescendants(id){
+  const desc=new Set();const q=[id];
+  while(q.length){const c=q.shift();(childrenOf[c]||[]).forEach(ch=>{if(!desc.has(ch)){desc.add(ch);q.push(ch)}})}
+  return desc;
+}
+function getAncestors(id){
+  const anc=new Set();const q=[id];
+  while(q.length){const c=q.shift();(parentsOf[c]||[]).forEach(p=>{if(!anc.has(p)){anc.add(p);q.push(p)}})}
+  return anc;
+}
+
+let selectedNode = null;
+
+function highlightSubtree(d, temporary){
+  if(!temporary) selectedNode = d;
+  const descendants = getDescendants(d.id);
+  const ancestors = getAncestors(d.id);
+  const allConnected = new Set([d.id, ...descendants, ...ancestors]);
+
+  node.classed('dimmed',n=>!allConnected.has(n.id)).classed('highlighted',n=>allConnected.has(n.id));
+
+  link.each(function(l){
+    const sid=typeof l.source==='object'?l.source.id:l.source;
+    const tid=typeof l.target==='object'?l.target.id:l.target;
+    const el=d3.select(this);
+    el.classed('dimmed',false).classed('highlighted-child',false).classed('highlighted-parent',false);
+    const isDescEdge=(sid===d.id||descendants.has(sid))&&descendants.has(tid);
+    const isAncEdge=(tid===d.id||ancestors.has(tid))&&ancestors.has(sid);
+    if(isDescEdge) el.classed('highlighted-child',true);
+    else if(isAncEdge) el.classed('highlighted-parent',true);
+    else el.classed('dimmed',true);
+  });
+}
+
+function clearHighlight(){
+  selectedNode = null;
+  node.classed('dimmed',false).classed('highlighted',false);
+  link.classed('dimmed',false).classed('highlighted-child',false).classed('highlighted-parent',false);
+}
+
+function openDetail(d){
+  const p=document.getElementById('detailPanel');
+  p.classList.add('open');
+  document.getElementById('detailName').textContent=d.name;
+  const lifespan = (d.birth||'?')+'–'+(d.death||'living');
+  document.getElementById('detailLifespan').textContent=lifespan;
+  document.getElementById('detailPlace').textContent=d.place||'Unknown';
+  document.getElementById('detailLang').textContent=d.language||'Unknown';
+  document.getElementById('detailGen').textContent='Generation '+d.generation;
+  document.getElementById('detailBio').textContent=d.bio||'';
+
+  // Badges
+  let badges='';
+  if(d.sk) badges+=`<span class="badge sk">Sangeetha Kalanidhi ${d.sk}</span>`;
+  if(d.sna) badges+=`<span class="badge sna">SNA Award ${d.sna}</span>`;
+  if(d.other_awards){
+    d.other_awards.split(',').map(a=>a.trim()).filter(Boolean).forEach(a=>{
+      badges+=`<span class="badge padma">${a}</span>`;
+    });
+  }
+  document.getElementById('detailBadges').innerHTML=badges;
+
+  // Gurus
+  let guruHtml='';
+  if(d.gurus){
+    d.gurus.split(',').map(s=>s.trim()).filter(Boolean).forEach(name=>{
+      const found = DATA.find(m=>m.name===name||m.name.includes(name));
+      if(found) guruHtml+=`<span class="guru-link" data-id="${found.id}">${name}</span>`;
+      else guruHtml+=`<span style="margin:2px;font-size:.88em">${name}</span>`;
+    });
+  } else guruHtml='<span style="color:#8b949e">None (Root)</span>';
+  document.getElementById('detailGurus').innerHTML=guruHtml;
+
+  // Students
+  let studHtml='';
+  if(d.students){
+    d.students.split(',').map(s=>s.trim()).filter(Boolean).forEach(name=>{
+      const found = DATA.find(m=>m.name===name||m.name.includes(name));
+      if(found) studHtml+=`<span class="student-link" data-id="${found.id}">${name}</span>`;
+      else studHtml+=`<span style="margin:2px;font-size:.88em">${name}</span>`;
+    });
+  } else studHtml='<span style="color:#8b949e">Not recorded</span>';
+  document.getElementById('detailStudents').innerHTML=studHtml;
+
+  // URL
+  const urlSec=document.getElementById('detailUrlSection');
+  const urlEl=document.getElementById('detailUrl');
+  if(d.url){urlSec.style.display='block';urlEl.href=d.url;urlEl.textContent=d.url}
+  else urlSec.style.display='none';
+
+  // Clickable guru/student links
+  document.querySelectorAll('.guru-link,.student-link').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const target=DATA.find(m=>m.id===el.dataset.id);
+      if(target){openDetail(target);focusNode(target)}
+    });
+  });
+
+  highlightSubtree(d);
+  showNodeIssues(d.id);
+}
+function closeDetail(){
+  document.getElementById('detailPanel').classList.remove('open');
+  clearHighlight();
+}
+document.getElementById('detailClose').addEventListener('click',e=>{e.stopPropagation();closeDetail()});
+
+function focusNode(d){
+  const t=d3.zoomIdentity.translate(width/2-d.x*1.2,height/2-d.y*1.2).scale(1.2);
+  svg.transition().duration(500).call(zoom.transform,t);
+}
+
+// Search
+const searchInput=document.getElementById('searchInput');
+const searchResults=document.getElementById('searchResults');
+searchInput.addEventListener('input',()=>{
+  const q=searchInput.value.toLowerCase().trim();
+  if(!q){searchResults.classList.remove('active');return}
+  const matches=DATA.filter(d=>d.name.toLowerCase().includes(q)).slice(0,10);
+  if(!matches.length){searchResults.classList.remove('active');return}
+  searchResults.innerHTML=matches.map(d=>
+    `<div class="search-result-item" data-id="${d.id}">${d.name} <span class="gen">Gen ${d.generation}</span></div>`
+  ).join('');
+  searchResults.classList.add('active');
+  searchResults.querySelectorAll('.search-result-item').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const target=DATA.find(m=>m.id===el.dataset.id);
+      if(target){openDetail(target);focusNode(target);searchResults.classList.remove('active');searchInput.value=''}
+    });
+  });
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.search-box'))searchResults.classList.remove('active')});
+
+// Filters
+let activeFilter='all';
+document.querySelectorAll('.filter-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter=btn.dataset.filter;
+    applyFilter();
+  });
+});
+function applyFilter(){
+  node.classed('dimmed',d=>{
+    if(activeFilter==='all') return false;
+    if(activeFilter==='awardees') return !hasAward(d);
+    if(activeFilter==='telugu') return !d.language.toLowerCase().includes('telugu');
+    if(activeFilter==='tamil') return d.language.toLowerCase().includes('telugu')||d.language.toLowerCase().includes('kannada')||d.language.toLowerCase().includes('malayal');
+    if(activeFilter==='kannada') return !d.language.toLowerCase().includes('kannada');
+    if(activeFilter==='malayalam') return !(d.language.toLowerCase().includes('malayal')||d.language.toLowerCase().includes('kerala'));
+    return false;
+  });
+  link.classed('dimmed',false);
+}
+
+// Stats bar
+document.getElementById('statsBar').innerHTML=
+  `<span><strong>${DATA.length}</strong> musicians</span>`+
+  `<span><strong>${links.length}</strong> guru-student links</span>`+
+  `<span><strong>9</strong> generations</span>`+
+  `<span>spanning <strong>~250 years</strong></span>`;
+
+// Drag handlers
+function dragS(e){if(!e.active)simulation.alphaTarget(.3).restart();e.subject.fx=e.subject.x;e.subject.fy=e.subject.y}
+function dragD(e){e.subject.fx=e.x;e.subject.fy=e.y}
+function dragE(e){if(!e.active)simulation.alphaTarget(0);e.subject.fx=null;e.subject.fy=null}
+
+// Initial zoom
+svg.call(zoom.transform,d3.zoomIdentity.translate(width*.1,30).scale(.65));
+
+// ===== ISSUE TRACKING SYSTEM =====
+let issues = [];
+try { issues = JSON.parse(localStorage.getItem('lineage-issues')||'[]'); } catch(e){ issues = []; }
+function saveIssues(){ localStorage.setItem('lineage-issues', JSON.stringify(issues)); updateIssueBadge(); }
+function updateIssueBadge(){
+  const badge = document.getElementById('issueBadge');
+  if(issues.length>0){ badge.style.display='inline-flex'; badge.textContent=issues.length; }
+  else badge.style.display='none';
+}
+updateIssueBadge();
+
+let issueTargetNode = null;
+
+// Report Issue button in detail panel
+document.getElementById('reportIssueBtn').addEventListener('click',e=>{
+  e.stopPropagation();
+  if(!selectedNode) return;
+  issueTargetNode = selectedNode;
+  document.getElementById('issueNodeName').textContent = selectedNode.name;
+  document.getElementById('issueText').value = '';
+  document.getElementById('issueSubmitBtn').disabled = true;
+  document.getElementById('issueOverlay').classList.add('open');
+  document.getElementById('issueText').focus();
+});
+
+// Enable submit when text entered
+document.getElementById('issueText').addEventListener('input',function(){
+  document.getElementById('issueSubmitBtn').disabled = !this.value.trim();
+});
+
+// Cancel
+document.getElementById('issueCancelBtn').addEventListener('click',()=>{
+  document.getElementById('issueOverlay').classList.remove('open');
+});
+document.getElementById('issueOverlay').addEventListener('click',e=>{
+  if(e.target===e.currentTarget) document.getElementById('issueOverlay').classList.remove('open');
+});
+
+// Submit
+document.getElementById('issueSubmitBtn').addEventListener('click',()=>{
+  const text = document.getElementById('issueText').value.trim();
+  if(!text || !issueTargetNode) return;
+  const issue = {
+    id: 'ISS-'+Date.now(),
+    nodeId: issueTargetNode.id,
+    nodeName: issueTargetNode.name,
+    text: text,
+    timestamp: new Date().toISOString()
+  };
+  issues.push(issue);
+  saveIssues();
+  document.getElementById('issueOverlay').classList.remove('open');
+  // Show toast
+  const toast = document.getElementById('issueToast');
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'),2500);
+  // Refresh detail panel issue list if still viewing same node
+  if(selectedNode && selectedNode.id === issueTargetNode.id) showNodeIssues(selectedNode.id);
+});
+
+// Show issues for a specific node in the detail panel
+function showNodeIssues(nodeId){
+  const nodeIssues = issues.filter(i=>i.nodeId===nodeId);
+  const sec = document.getElementById('detailIssuesSection');
+  const list = document.getElementById('detailIssuesList');
+  if(nodeIssues.length===0){ sec.style.display='none'; return; }
+  sec.style.display='block';
+  list.innerHTML = nodeIssues.map(i=>{
+    const d = new Date(i.timestamp);
+    const dateStr = d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+    return `<div class="issue-card" style="padding:8px 0;border-bottom:1px solid #21262d">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="color:#484f58;font-size:.72em">${dateStr}</span>
+        <button class="issue-card-delete" data-issid="${i.id}">remove</button>
+      </div>
+      <div style="color:#c9d1d9;font-size:.85em;margin-top:4px;line-height:1.4">${escapeHtml(i.text)}</div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.issue-card-delete').forEach(btn=>{
+    btn.addEventListener('click',()=>{ deleteIssue(btn.dataset.issid); showNodeIssues(nodeId); });
+  });
+}
+function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function deleteIssue(issueId){
+  issues = issues.filter(i=>i.id!==issueId);
+  saveIssues();
+}
+
+// Issues panel (view all issues)
+document.getElementById('issuesPanel').addEventListener('click',e=>e.stopPropagation());
+document.getElementById('issuesBtn').addEventListener('click',e=>{
+  e.stopPropagation();
+  // Close detail panel if open
+  document.getElementById('detailPanel').classList.remove('open');
+  const panel = document.getElementById('issuesPanel');
+  panel.classList.toggle('open');
+  if(panel.classList.contains('open')) renderIssuesPanel();
+});
+document.getElementById('issuesPanelClose').addEventListener('click',e=>{
+  e.stopPropagation();
+  document.getElementById('issuesPanel').classList.remove('open');
+});
+
+function renderIssuesPanel(){
+  const body = document.getElementById('issuesPanelBody');
+  if(issues.length===0){
+    body.innerHTML='<div class="issues-empty">No issues reported yet.<br>Click on a musician and use "Report Issue" to flag errors.</div>';
+    return;
+  }
+  // Show newest first
+  const sorted = [...issues].reverse();
+  body.innerHTML = sorted.map(i=>{
+    const d = new Date(i.timestamp);
+    const dateStr = d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    return `<div class="issue-card">
+      <div class="issue-card-header">
+        <span class="issue-card-name" data-id="${i.nodeId}">${escapeHtml(i.nodeName)}</span>
+        <span class="issue-card-date">${dateStr}</span>
+      </div>
+      <div class="issue-card-text">${escapeHtml(i.text)}</div>
+      <button class="issue-card-delete" data-issid="${i.id}">remove</button>
+    </div>`;
+  }).join('');
+  body.querySelectorAll('.issue-card-name').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const target=DATA.find(m=>m.id===el.dataset.id);
+      if(target){
+        document.getElementById('issuesPanel').classList.remove('open');
+        openDetail(target);
+        focusNode(target);
+      }
+    });
+  });
+  body.querySelectorAll('.issue-card-delete').forEach(btn=>{
+    btn.addEventListener('click',()=>{ deleteIssue(btn.dataset.issid); renderIssuesPanel(); });
+  });
+}
+
+// Export issues as JSON
+document.getElementById('exportIssuesBtn').addEventListener('click',()=>{
+  if(issues.length===0) return;
+  const blob = new Blob([JSON.stringify(issues,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download='lineage-issues-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>
